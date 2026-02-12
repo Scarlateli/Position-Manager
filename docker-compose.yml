@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: position-db
+    environment:
+      POSTGRES_DB: positiondb
+      POSTGRES_USER: position_user
+      POSTGRES_PASSWORD: position_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+volumes:
+  postgres_data:

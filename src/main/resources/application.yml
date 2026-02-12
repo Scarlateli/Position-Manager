@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: position-manager
+  datasource:
+    url: jdbc:postgresql://localhost:5432/positiondb
+    username: position_user
+    password: position_pass
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
