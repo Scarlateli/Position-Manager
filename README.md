@@ -63,10 +63,12 @@ src/main/java/com/trading/position_manager/
 ├── controller/     # endpoints REST
 ├── service/        # regras de negócio
 ├── repository/     # acesso a dados
-├── model/          # entidades JPA
-├── dto/            # objetos de request/response
-└── exception/      # tratamento de erros
+├── model/          # entidades JPA e enums
+├── dto/            # objetos de transferência (request/response)
+└── exception/      # tratamento global de erros
 ```
+
+> **Nota:** Todos os pacotes devem estar dentro de `com.trading.position_manager` para o Spring Boot realizar o component scan corretamente.
 
 ## Roadmap
 
@@ -88,7 +90,24 @@ Em sistemas financeiros, você nunca deleta dados. Auditoria, compliance, e a po
 A entidade JPA tem campos que o cliente não precisa ver (timestamps, flags internas). O DTO expõe apenas o necessário e permite evoluir a API sem quebrar o banco.
 
 **Por que não usar `@Data` na entidade?**  
-Lombok `@Data` gera `equals/hashCode` baseado em todos os campos, o que quebra com JPA quando a entidade ainda não foi persistida. Uso `@Getter/@Setter` + implemento `equals/hashCode` só com o ID.
+Lombok `@Data` gera `equals/hashCode` baseado em todos os campos, o que quebra com JPA quando a entidade ainda não foi persistida. Usamos `@Getter/@Setter` + implementação manual de `equals/hashCode` baseado apenas no ID:
+
+```java
+@Override
+public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Instrument that = (Instrument) o;
+    return id != null && Objects.equals(id, that.id);
+}
+
+@Override
+public int hashCode() {
+    return getClass().hashCode();
+}
+```
+
+Essa implementação garante que entidades não persistidas (id = null) nunca sejam consideradas iguais, e o hashCode constante evita problemas com collections quando o ID muda após persist.
 
 ---
 
