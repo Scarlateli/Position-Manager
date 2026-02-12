@@ -1,0 +1,357 @@
+================================================================================
+POSITION MANAGER - CORREÇÕES E APRENDIZADOS (2026-02-12)
+================================================================================
+
+Este documento explica os problemas encontrados no projeto e como foram
+resolvidos. Escrito de forma didática para consulta futura.
+
+
+================================================================================
+PROBLEMA 1: Estrutura de Pacotes Incorreta
+================================================================================
+
+O QUE ACONTECEU:
+----------------
+Os arquivos Java estavam em pastas erradas. Por exemplo:
+
+  ERRADO:  src/main/java/controller/InstrumentController.java
+  CERTO:   src/main/java/com/trading/position_manager/controller/InstrumentController.java
+
+
+POR QUE ISSO É UM PROBLEMA:
+---------------------------
+Em Java, o "pacote" (package) de uma classe precisa corresponder EXATAMENTE
+à estrutura de pastas onde o arquivo está.
+
+No código, tínhamos:
+
+  package com.trading.position_manager.controller;
+
+Isso significa que o Java espera encontrar esse arquivo em:
+
+  src/main/java/com/trading/position_manager/controller/
+
+Cada ponto (.) no nome do pacote representa uma pasta.
+
+
+POR QUE O SPRING BOOT NÃO ENCONTRAVA OS BEANS:
+----------------------------------------------
+O Spring Boot usa algo chamado "Component Scan" para encontrar automaticamente
+as classes anotadas com @Controller, @Service, @Repository, etc.
+
+Por padrão, ele escaneia apenas:
+  - O pacote da classe principal (PositionManagerApplication)
+  - Todos os subpacotes desse pacote
+
+Nossa classe principal está em:
+  com.trading.position_manager
+
+Então o Spring só procura em:
+  com.trading.position_manager.*
+
+Como os arquivos estavam fisicamente em /controller/, /service/, etc.
+(sem o prefixo com/trading/position_manager/), o Spring simplesmente
+não os encontrava.
+
+
+SOLUÇÃO:
+--------
+Mover todos os arquivos para a estrutura de pastas correta:
+
+  src/main/java/
+  └── com/
+      └── trading/
+          └── position_manager/
+              ├── controller/
+              │   └── InstrumentController.java
+              ├── service/
+              │   └── InstrumentService.java
+              ├── dto/
+              │   └── InstrumentRequestDTO.java
+              ├── exception/
+              │   ├── GlobalExceptionHandler.java
+              │   ├── BusinessException.java
+              │   └── ResourceNotFoundException.java
+              ├── model/
+              │   ├── Instrument.java
+              │   └── InstrumentType.java
+              ├── repository/
+              │   └── InstrumentRepository.java
+              └── PositionManagerApplication.java
+
+
+DICA PARA O FUTURO:
+-------------------
+Sempre que criar um novo arquivo Java, certifique-se que:
+  1. A declaração "package" no topo do arquivo
+  2. A estrutura de pastas onde o arquivo está
+
+São EXATAMENTE correspondentes.
+
+
+================================================================================
+PROBLEMA 2: Uso de @Data em Entidade JPA
+================================================================================
+
+O QUE É @DATA DO LOMBOK:
+------------------------
+Lombok é uma biblioteca que gera código automaticamente para evitar
+"boilerplate" (código repetitivo). A anotação @Data gera:
+
+  - Getters para todos os campos
+  - Setters para todos os campos
+  - toString()
+  - equals()
+  - hashCode()
+
+Parece ótimo, certo? Mas tem um problema com JPA...
+
+
+O PROBLEMA COM equals() E hashCode() EM ENTIDADES JPA:
+------------------------------------------------------
+O @Data gera equals() e hashCode() baseado em TODOS os campos da classe.
+Isso causa problemas porque:
+
+1. ANTES de salvar no banco:
+   - O campo "id" é null
+   - Duas entidades novas seriam consideradas "iguais" (ambas com id=null)
+
+2. DEPOIS de salvar no banco:
+   - O campo "id" recebe um valor (ex: 1, 2, 3...)
+   - O hashCode MUDA!
+
+Por que isso é ruim? Imagine esse cenário:
+
+  Set<Instrument> instrumentos = new HashSet<>();
+  Instrument inst = new Instrument();  // id = null, hashCode = X
+  instrumentos.add(inst);
+  repository.save(inst);               // id = 1, hashCode = Y (MUDOU!)
+  instrumentos.contains(inst);         // RETORNA FALSE! O objeto "sumiu"
+
+O HashSet usa o hashCode para encontrar objetos. Se o hashCode muda depois
+que você adicionou o objeto, ele não consegue mais encontrá-lo.
+
+
+SOLUÇÃO - IMPLEMENTAÇÃO MANUAL:
+-------------------------------
+Substituímos @Data por @Getter e @Setter (que não geram equals/hashCode)
+e implementamos manualmente:
+
+  @Override
+  public boolean equals(Object o) {
+      if (this == o) return true;  // mesma referência = igual
+      if (o == null || getClass() != o.getClass()) return false;  // tipos diferentes = diferente
+      Instrument that = (Instrument) o;
+      return id != null && Objects.equals(id, that.id);  // compara só pelo ID
+  }
+
+  @Override
+  public int hashCode() {
+      return getClass().hashCode();  // retorna sempre o mesmo valor
+  }
+
+Por que hashCode() retorna um valor fixo?
+- Garante que o hashCode NUNCA muda, mesmo após o save
+- É uma prática recomendada para entidades JPA
+- A performance é levemente menor, mas a correção é garantida
+
+Por que equals() verifica "id != null"?
+- Duas entidades com id=null NUNCA são consideradas iguais
+- Só são iguais se ambas têm ID e os IDs são iguais
+
+
+================================================================================
+PROBLEMA 3: Swagger/OpenAPI Retornando Erro 500
+================================================================================
+
+O QUE É O SWAGGER:
+------------------
+Swagger (ou OpenAPI) é uma ferramenta que gera documentação interativa da API.
+Você acessa http://localhost:8080/swagger-ui.html e consegue:
+  - Ver todos os endpoints disponíveis
+  - Testar as requisições direto do navegador
+  - Ver os schemas (estrutura dos objetos)
+
+O Swagger precisa de um arquivo JSON com a definição da API, que fica em:
+  http://localhost:8080/v3/api-docs
+
+
+O QUE ESTAVA ACONTECENDO:
+-------------------------
+Ao acessar /v3/api-docs, recebíamos erro 500 (Internal Server Error).
+Sem esse JSON, o Swagger não conseguia carregar.
+
+
+CAUSA 1 - GlobalExceptionHandler Capturando Tudo:
+-------------------------------------------------
+Tínhamos esse código:
+
+  @ExceptionHandler(RuntimeException.class)  // CAPTURA TODAS AS RuntimeExceptions!
+  public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
+      Map<String, String> error = new HashMap<>();
+      error.put("error", ex.getMessage());
+      return ResponseEntity.badRequest().body(error);
+  }
+
+O problema: RuntimeException é a classe "pai" de muitas exceções em Java.
+Quando o Springdoc tentava gerar a documentação e dava algum erro interno,
+nosso handler capturava esse erro e retornava uma resposta diferente.
+
+Isso "mascarava" o erro real e impedia o Springdoc de funcionar.
+
+
+SOLUÇÃO - EXCEÇÕES ESPECÍFICAS:
+-------------------------------
+Criamos duas exceções customizadas para o nosso negócio:
+
+1. BusinessException - Para regras de negócio violadas
+   Exemplo: tentar cadastrar um ticker que já existe
+   Retorna: HTTP 400 (Bad Request)
+
+2. ResourceNotFoundException - Para recursos não encontrados
+   Exemplo: buscar instrumento com ID que não existe
+   Retorna: HTTP 404 (Not Found)
+
+E atualizamos o handler para capturar APENAS essas exceções:
+
+  @ExceptionHandler(ResourceNotFoundException.class)  // Só essa exceção
+  public ResponseEntity<...> handleNotFound(...) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+  }
+
+  @ExceptionHandler(BusinessException.class)  // Só essa exceção
+  public ResponseEntity<...> handleBusiness(...) {
+      return ResponseEntity.badRequest().body(error);
+  }
+
+Agora o Springdoc pode lançar suas exceções internas sem interferência.
+
+
+CAUSA 2 - Versão Incompatível do Springdoc:
+-------------------------------------------
+A versão 2.3.0 do springdoc não era totalmente compatível com Spring Boot 3.5.10.
+
+Solução: atualizar para versão 2.8.4 no pom.xml:
+
+  <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>2.8.4</version>  <!-- Era 2.3.0 -->
+  </dependency>
+
+
+DICA PARA O FUTURO:
+-------------------
+Sempre crie exceções específicas para seu domínio de negócio.
+Nunca capture Exception ou RuntimeException de forma genérica em handlers.
+
+
+================================================================================
+ARQUIVOS CRIADOS E SEUS PROPÓSITOS
+================================================================================
+
+BusinessException.java
+----------------------
+Localização: src/main/java/com/trading/position_manager/exception/
+
+Propósito: Exceção lançada quando uma regra de negócio é violada.
+
+Quando usar:
+  - Ticker já cadastrado
+  - Valor inválido para algum campo
+  - Qualquer validação de negócio que falhe
+
+Código:
+  public class BusinessException extends RuntimeException {
+      public BusinessException(String message) {
+          super(message);
+      }
+  }
+
+Exemplo de uso no código:
+  if (repository.existsByTicker(dto.getTicker())) {
+      throw new BusinessException("Ticker já cadastrado: " + dto.getTicker());
+  }
+
+Resultado na API:
+  HTTP 400 Bad Request
+  { "error": "Ticker já cadastrado: PETR4" }
+
+
+ResourceNotFoundException.java
+------------------------------
+Localização: src/main/java/com/trading/position_manager/exception/
+
+Propósito: Exceção lançada quando um recurso solicitado não existe.
+
+Quando usar:
+  - Buscar por ID que não existe
+  - Buscar por ticker que não existe
+  - Qualquer busca que não retorna resultado
+
+Código:
+  public class ResourceNotFoundException extends RuntimeException {
+      public ResourceNotFoundException(String message) {
+          super(message);
+      }
+  }
+
+Exemplo de uso no código:
+  public Instrument findById(Long id) {
+      return repository.findById(id)
+          .orElseThrow(() -> new ResourceNotFoundException(
+              "Instrumento não encontrado com ID: " + id));
+  }
+
+Resultado na API:
+  HTTP 404 Not Found
+  { "error": "Instrumento não encontrado com ID: 999" }
+
+
+================================================================================
+RESUMO DAS ALTERAÇÕES
+================================================================================
+
+ARQUIVOS MODIFICADOS:
+- Instrument.java (trocado @Data por @Getter/@Setter + equals/hashCode manual)
+- InstrumentService.java (usando as novas exceções customizadas)
+- GlobalExceptionHandler.java (handlers específicos em vez de genérico)
+- pom.xml (versão do springdoc atualizada)
+- README.md (documentação atualizada)
+
+ARQUIVOS CRIADOS:
+- BusinessException.java (exceção para regras de negócio)
+- ResourceNotFoundException.java (exceção para recursos não encontrados)
+
+ARQUIVOS MOVIDOS:
+- Todos os arquivos de controller/, service/, dto/, exception/
+  movidos para dentro de com/trading/position_manager/
+
+
+================================================================================
+CONCEITOS IMPORTANTES APRENDIDOS
+================================================================================
+
+1. PACKAGES EM JAVA
+   O nome do pacote deve corresponder à estrutura de pastas.
+   com.trading.position_manager = com/trading/position_manager/
+
+2. COMPONENT SCAN DO SPRING
+   O Spring Boot automaticamente encontra classes anotadas (@Controller, etc.)
+   mas só no pacote da aplicação e subpacotes.
+
+3. @DATA VS @GETTER/@SETTER EM ENTIDADES JPA
+   Nunca use @Data em entidades JPA. Use @Getter/@Setter e implemente
+   equals/hashCode manualmente baseado apenas no ID.
+
+4. EXCEPTION HANDLERS
+   Seja específico! Nunca capture RuntimeException genérica.
+   Crie exceções customizadas para cada tipo de erro do seu negócio.
+
+5. CÓDIGOS HTTP
+   - 200 OK: Sucesso
+   - 201 Created: Recurso criado com sucesso
+   - 204 No Content: Sucesso sem corpo de resposta (usado em DELETE)
+   - 400 Bad Request: Erro do cliente (dados inválidos, regra violada)
+   - 404 Not Found: Recurso não encontrado
+   - 500 Internal Server Error: Erro do servidor (bug, exceção não tratada)
