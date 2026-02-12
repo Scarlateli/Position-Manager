@@ -1,10 +1,10 @@
 # Position Manager
 
-Sistema de gestão de posições financeiras inspirado no [Nasdaq Calypso](https://www.nasdaq.com/solutions/calypso-technology) — o mesmo software usado pelo BTG Pactual para gestão de risco e posições.
+Sistema de gestão de posições financeiras inspirado no [Nasdaq Calypso](https://www.nasdaq.com/solutions/calypso-technology) o mesmo software usado para gestão de risco e posições.
 
 ## Por que esse projeto existe
 
-Quero trabalhar como desenvolvedor backend em bancos e fintechs brasileiras. Em vez de fazer mais um CRUD genérico de todo-list, decidi construir algo que reflete o que esses lugares realmente usam: um sistema de posições financeiras.
+Em vez de fazer mais um CRUD genérico de todo-list, decidi construir algo que reflete o que bancos e fintechs realmente usam: um sistema de posições financeiras.
 
 O projeto implementa conceitos reais do mercado:
 - Cadastro de instrumentos financeiros (ações, bonds, derivativos)
