@@ -37,4 +37,9 @@ public class InstrumentController {
     public void delete(@PathVariable Long id) {
         service.delete(id);
     }
+
+    @PatchMapping("/{id}/reactivate")
+    public Instrument reactivate(@PathVariable Long id) {
+        return service.reactivate(id);
+    }
 }

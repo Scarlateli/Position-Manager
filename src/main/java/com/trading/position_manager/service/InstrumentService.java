@@ -46,4 +46,10 @@ public class InstrumentService {
         instrument.setActive(false);
         repository.save(instrument);
     }
+    public Instrument reactivate(Long id) {
+        Instrument instrument = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Instrumento não encontrado"));
+        instrument.setActive(true);
+        return repository.save(instrument);
+    }
 }

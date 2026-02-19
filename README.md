@@ -40,10 +40,11 @@ Swagger em `http://localhost:8080/swagger-ui.html`
 ### Instrumentos
 
 ```
-GET    /api/v1/instruments      → lista ativos
-GET    /api/v1/instruments/{id} → busca por id
-POST   /api/v1/instruments      → cria novo
-DELETE /api/v1/instruments/{id} → soft delete
+GET    /api/v1/instruments             → lista ativos
+GET    /api/v1/instruments/{id}        → busca por id
+POST   /api/v1/instruments             → cria novo
+DELETE /api/v1/instruments/{id}        → soft delete (desativa)
+PATCH  /api/v1/instruments/{id}/reactivate → reativa instrumento
 ```
 
 Exemplo de payload:
@@ -55,6 +56,32 @@ Exemplo de payload:
   "currency": "BRL"
 }
 ```
+
+### Trades
+
+```
+POST   /api/v1/trades           → cria novo trade
+PATCH  /api/v1/trades/{id}/settle → liquida trade
+PATCH  /api/v1/trades/{id}/cancel → cancela trade
+```
+
+Exemplo de payload:
+```json
+{
+  "instrumentId": 1,
+  "tradeDate": "2026-02-19",
+  "direction": "BUY",
+  "quantity": 100,
+  "price": 25.50,
+  "counterparty": "Banco XYZ"
+}
+```
+
+**Regras de negócio:**
+- Não é permitido criar trades em instrumentos inativos
+- Settlement Date é calculado automaticamente (Trade Date + 2 dias úteis)
+- Trade liquidado (`SETTLED`) não pode ser cancelado
+- Trade cancelado (`CANCELLED`) não pode ser liquidado
 
 ## Estrutura
 
@@ -74,8 +101,9 @@ src/main/java/com/trading/position_manager/
 
 - [x] Setup inicial + Docker + PostgreSQL
 - [x] Entidade Instrument com soft delete
-- [ ] CRUD completo via API REST
-- [ ] Entidade Trade + relacionamentos
+- [x] CRUD completo de Instruments via API REST
+- [x] Entidade Trade + relacionamentos (@ManyToOne)
+- [x] Regras de negócio (validação de instrumento ativo, D+2, transições de status)
 - [ ] Cálculo de posições (quantidade líquida por instrumento)
 - [ ] Eventos assíncronos com RabbitMQ
 - [ ] Testes unitários e de integração
