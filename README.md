@@ -1,6 +1,18 @@
 # Position Manager
 
-Sistema de gestão de posições financeiras inspirado no [Nasdaq Calypso](https://www.nasdaq.com/solutions/calypso-technology) o mesmo software usado para gestão de risco e posições.
+Sistema de gestão de posições financeiras inspirado no [Nasdaq Calypso](https://www.nasdaq.com/solutions/calypso-technology), software usado por bancos para gestão de risco e posições.
+
+> ⚠️ **Status:** Em desenvolvimento — Sprint 3 de 9 concluída
+
+## Visão do Projeto
+
+**Objetivo final:** Sistema completo de gestão de trades e posições com:
+- Cadastro de instrumentos financeiros
+- Registro e lifecycle de trades
+- Cálculo de posições agregadas por instrumento
+- Eventos assíncronos (RabbitMQ)
+- Cálculo de P&L (Profit & Loss)
+- Cobertura de testes
 
 ## Por que esse projeto existe
 
@@ -97,17 +109,20 @@ src/main/java/com/trading/position_manager/
 
 > **Nota:** Todos os pacotes devem estar dentro de `com.trading.position_manager` para o Spring Boot realizar o component scan corretamente.
 
-## Roadmap
+## Roadmap (9 Sprints)
 
-- [x] Setup inicial + Docker + PostgreSQL
-- [x] Entidade Instrument com soft delete
-- [x] CRUD completo de Instruments via API REST
-- [x] Entidade Trade + relacionamentos (@ManyToOne)
-- [x] Regras de negócio (validação de instrumento ativo, D+2, transições de status)
-- [ ] Cálculo de posições (quantidade líquida por instrumento)
-- [ ] Eventos assíncronos com RabbitMQ
-- [ ] Testes unitários e de integração
-- [ ] P&L básico
+### Concluídas ✅
+- **Sprint 1:** Setup inicial + Docker + PostgreSQL
+- **Sprint 2:** Entidade Instrument com CRUD e soft delete
+- **Sprint 3:** Entidade Trade + relacionamentos + regras de negócio (D+2, validações, estados)
+
+### Em andamento / Próximas 🚧
+- **Sprint 4:** Cálculo de posições (quantidade líquida por instrumento)
+- **Sprint 5:** Eventos assíncronos com RabbitMQ
+- **Sprint 6:** Testes unitários (JUnit 5 + Mockito)
+- **Sprint 7:** Testes de integração
+- **Sprint 8:** P&L básico (Profit & Loss)
+- **Sprint 9:** Refatoração e documentação final
 
 ## Decisões técnicas
 
@@ -139,4 +154,18 @@ Essa implementação garante que entidades não persistidas (id = null) nunca se
 
 ---
 
-Projeto em desenvolvimento. Acompanhe o progresso nos commits.
+## Progresso
+
+```
+Sprint 1  ██████████ Concluída
+Sprint 2  ██████████ Concluída
+Sprint 3  ██████████ Concluída
+Sprint 4  ░░░░░░░░░░ Próxima
+Sprint 5  ░░░░░░░░░░
+Sprint 6  ░░░░░░░░░░
+Sprint 7  ░░░░░░░░░░
+Sprint 8  ░░░░░░░░░░
+Sprint 9  ░░░░░░░░░░
+```
+
+Projeto em desenvolvimento ativo. Acompanhe o progresso nos commits.
