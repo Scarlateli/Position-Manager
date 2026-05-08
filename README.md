@@ -1,5 +1,7 @@
 # Position Manager
 
+🇺🇸 **English** · [🇧🇷 Português](README.pt-BR.md)
+
 A trade & position management system inspired by what banks actually run on — specifically [Nasdaq Calypso](https://www.nasdaq.com/solutions/calypso-technology), the platform several major banks use for risk and position management.
 
 > 🚧 **Status:** Sprint 3 of 9 shipped · Sprint 4 in progress · **PRs welcome**
@@ -176,4 +178,4 @@ Trades are the write model (source of truth, audited). Positions are the read mo
 
 ---
 
-🇧🇷 *Para a versão em português, veja o [README anterior no histórico do git](https://github.com/Scarlateli/Position-Manager/blob/main/README.md).*
+🇧🇷 *Para a versão em português, veja [README.pt-BR.md](README.pt-BR.md).*
