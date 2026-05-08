@@ -1,65 +1,60 @@
 # Position Manager
 
-Sistema de gestão de posições financeiras inspirado no [Nasdaq Calypso](https://www.nasdaq.com/solutions/calypso-technology), software usado por bancos para gestão de risco e posições.
+A trade & position management system inspired by what banks actually run on — specifically [Nasdaq Calypso](https://www.nasdaq.com/solutions/calypso-technology), the platform several major banks use for risk and position management.
 
-> ⚠️ **Status:** Em desenvolvimento — Sprint 3 de 9 concluída
+> 🚧 **Status:** Sprint 3 of 9 shipped · Sprint 4 in progress · **PRs welcome**
 
-## Visão do Projeto
+[![Java](https://img.shields.io/badge/Java-17-orange)]()
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green)]()
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-**Objetivo final:** Sistema completo de gestão de trades e posições com:
-- Cadastro de instrumentos financeiros
-- Registro e lifecycle de trades
-- Cálculo de posições agregadas por instrumento
-- Eventos assíncronos (RabbitMQ)
-- Cálculo de P&L (Profit & Loss)
-- Cobertura de testes
+## Why this exists
 
-## Por que esse projeto existe
+Most personal projects are yet another to-do CRUD. This one models real concepts that banks and brokers use:
 
-Em vez de fazer mais um CRUD genérico de todo-list, decidi construir algo que reflete o que bancos e fintechs realmente usam: um sistema de posições financeiras.
+- **Instruments** (stocks, bonds, derivatives) with soft delete — because financial data is never actually deleted (audit, compliance, reactivation)
+- **Trades** with a real lifecycle (`PENDING → SETTLED → CANCELLED`) and **T+2 settlement** following the B3 (Brazilian exchange) rule since 2019
+- **Positions** as a CQRS-style projection: trades are the write model, positions are the read model, recalculated atomically on settle
+- **Weighted Average Cost (WAC)** — `Σ(buy_qty × buy_price) / Σ(buy_qty)` over BUY trades only
 
-O projeto implementa conceitos reais do mercado:
-- Cadastro de instrumentos financeiros (ações, bonds, derivativos)
-- Registro de trades com cálculo de posição
-- Soft delete (padrão em sistemas financeiros onde nada é realmente deletado)
-- Arquitetura em camadas que escala
+Built to learn engineering of financial systems out in the open. Better with you.
 
 ## Stack
 
 ```
 Java 17 + Spring Boot 3.2 + Spring Data JPA
-PostgreSQL (Docker)
-Maven
+PostgreSQL 16 (Docker)
+Maven · JUnit 5 (coming Sprint 6)
 ```
 
-Planejado para as próximas semanas: RabbitMQ para eventos de trade, testes com JUnit 5 + Mockito.
+Coming next: RabbitMQ for trade events (Sprint 5), full test coverage (Sprints 6–7), P&L calculation (Sprint 8).
 
-## Rodando localmente
+## Run locally
 
 ```bash
-# sobe o postgres
+# Start PostgreSQL
 docker-compose up -d
 
-# roda a aplicação
+# Run the application
 ./mvnw spring-boot:run
 ```
 
-API disponível em `http://localhost:8080/api/v1`  
-Swagger em `http://localhost:8080/swagger-ui.html`
+API at `http://localhost:8080/api/v1`
+Swagger UI at `http://localhost:8080/swagger-ui.html`
 
 ## API
 
-### Instrumentos
+### Instruments
 
 ```
-GET    /api/v1/instruments             → lista ativos
-GET    /api/v1/instruments/{id}        → busca por id
-POST   /api/v1/instruments             → cria novo
-DELETE /api/v1/instruments/{id}        → soft delete (desativa)
-PATCH  /api/v1/instruments/{id}/reactivate → reativa instrumento
+GET    /api/v1/instruments                   → list active
+GET    /api/v1/instruments/{id}              → get by id
+POST   /api/v1/instruments                   → create
+DELETE /api/v1/instruments/{id}              → soft delete
+PATCH  /api/v1/instruments/{id}/reactivate   → reactivate
 ```
 
-Exemplo de payload:
 ```json
 {
   "ticker": "PETR4",
@@ -72,12 +67,11 @@ Exemplo de payload:
 ### Trades
 
 ```
-POST   /api/v1/trades           → cria novo trade
-PATCH  /api/v1/trades/{id}/settle → liquida trade
-PATCH  /api/v1/trades/{id}/cancel → cancela trade
+POST   /api/v1/trades              → create
+PATCH  /api/v1/trades/{id}/settle  → settle (transitions to SETTLED, triggers position recalc)
+PATCH  /api/v1/trades/{id}/cancel  → cancel
 ```
 
-Exemplo de payload:
 ```json
 {
   "instrumentId": 1,
@@ -89,51 +83,74 @@ Exemplo de payload:
 }
 ```
 
-**Regras de negócio:**
-- Não é permitido criar trades em instrumentos inativos
-- Settlement Date é calculado automaticamente (Trade Date + 2 dias úteis)
-- Trade liquidado (`SETTLED`) não pode ser cancelado
-- Trade cancelado (`CANCELLED`) não pode ser liquidado
+**Business rules:**
+- Trades cannot be created on inactive instruments
+- `settlementDate` is auto-calculated: `tradeDate + 2 days` (B3 rule, since 2019)
+- A `SETTLED` trade cannot be cancelled
+- A `CANCELLED` trade cannot be settled
 
-## Estrutura
+## Architecture
 
 ```
 src/main/java/com/trading/position_manager/
-├── controller/     # endpoints REST
-├── service/        # regras de negócio
-├── repository/     # acesso a dados
-├── model/          # entidades JPA e enums
-├── dto/            # objetos de transferência (request/response)
-└── exception/      # tratamento global de erros
+├── controller/   # REST endpoints
+├── service/      # business logic
+├── repository/   # data access (Spring Data JPA)
+├── model/        # JPA entities + enums
+├── dto/          # request/response payloads
+└── exception/    # global error handling (@RestControllerAdvice)
 ```
 
-> **Nota:** Todos os pacotes devem estar dentro de `com.trading.position_manager` para o Spring Boot realizar o component scan corretamente.
+Standard layered architecture: `Controller → Service → Repository → Model`. Two domain exceptions drive all error responses — `BusinessException` (HTTP 400) and `ResourceNotFoundException` (HTTP 404).
 
-## Roadmap (9 Sprints)
+> 📖 See [`CLAUDE.md`](CLAUDE.md) for project conventions, and [`HELP.md`](HELP.md) for sprint-by-sprint learning notes (lots of detail on JPA, transactions, CQRS, and WAC math).
 
-### Concluídas ✅
-- **Sprint 1:** Setup inicial + Docker + PostgreSQL
-- **Sprint 2:** Entidade Instrument com CRUD e soft delete
-- **Sprint 3:** Entidade Trade + relacionamentos + regras de negócio (D+2, validações, estados)
+## Roadmap
 
-### Em andamento / Próximas 🚧
-- **Sprint 4:** Cálculo de posições (quantidade líquida por instrumento)
-- **Sprint 5:** Eventos assíncronos com RabbitMQ
-- **Sprint 6:** Testes unitários (JUnit 5 + Mockito)
-- **Sprint 7:** Testes de integração
-- **Sprint 8:** P&L básico (Profit & Loss)
-- **Sprint 9:** Refatoração e documentação final
+| Sprint | Scope | Status |
+|---|---|---|
+| 1 | Setup + Docker + PostgreSQL | ✅ Done |
+| 2 | Instrument · CRUD · soft delete | ✅ Done |
+| 3 | Trade · relationships · D+2 rules | ✅ Done |
+| 4 | **Position aggregation · WAC math** | 🚧 In progress |
+| 5 | Async events with RabbitMQ | ⬜ Todo |
+| 6 | Unit tests (JUnit 5 + Mockito) | ⬜ Todo |
+| 7 | Integration tests | ⬜ Todo |
+| 8 | P&L calculation (realized / unrealized) | ⬜ Todo |
+| 9 | Refactor · Auth (Spring Security + JWT) | ⬜ Todo |
 
-## Decisões técnicas
+## Contributing
 
-**Por que soft delete?**  
-Em sistemas financeiros, você nunca deleta dados. Auditoria, compliance, e a possibilidade de reverter operações exigem que tudo seja mantido. O campo `active` permite "deletar" sem perder histórico.
+**Sprint 4 is open. Any PR is welcome.** Whether you're new to Spring or you build fintech for a living, there's a piece for you.
 
-**Por que separar DTO do Model?**  
-A entidade JPA tem campos que o cliente não precisa ver (timestamps, flags internas). O DTO expõe apenas o necessário e permite evoluir a API sem quebrar o banco.
+### Where to start
 
-**Por que não usar `@Data` na entidade?**  
-Lombok `@Data` gera `equals/hashCode` baseado em todos os campos, o que quebra com JPA quando a entidade ainda não foi persistida. Usamos `@Getter/@Setter` + implementação manual de `equals/hashCode` baseado apenas no ID:
+1. **Browse [`good first issue`](https://github.com/Scarlateli/Position-Manager/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22) issues** — small, scoped, well-described. Most can be done in 30–60 minutes.
+2. **Check [`help wanted`](https://github.com/Scarlateli/Position-Manager/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)** for meatier work (PositionService with WAC math, async events with RabbitMQ).
+3. **Read [`CLAUDE.md`](CLAUDE.md)** before touching code — it documents project-wide conventions (Lombok rules, BigDecimal precision, FetchType strategy, response DTO policy). Following these saves review cycles.
+
+### Workflow
+
+1. Comment on the issue saying you'd like to take it (avoids two people doing the same thing)
+2. Fork and create a branch named `sprint-4/<short-description>` or `fix/<short-description>`
+3. Make your changes following the conventions in `CLAUDE.md`
+4. Open a PR referencing the issue (`Closes #X`)
+5. Reviews land within 24–48h
+
+### Discussion
+
+If you're unsure about an approach, **open a draft PR or comment on the issue** before going deep. It's far better to align on direction in 5 minutes than to spend hours on something that needs reshaping.
+
+## Why these technical choices?
+
+**Why soft delete?**
+In financial systems, you never delete data. Audit, compliance, and the possibility of reverting operations require everything to be kept. The `active` flag lets you "delete" without losing history.
+
+**Why separate DTO from Model?**
+The JPA entity has fields the client doesn't need (timestamps, internal flags). The DTO exposes only what's necessary and lets you evolve the API without breaking the database schema.
+
+**Why not `@Data` on entities?**
+Lombok's `@Data` generates `equals`/`hashCode` based on all fields, which breaks JPA when the entity hasn't been persisted yet (`id = null`) and again when the ID changes after `save()`. We use `@Getter` + `@Setter` + manual `equals`/`hashCode` based on ID only:
 
 ```java
 @Override
@@ -150,22 +167,13 @@ public int hashCode() {
 }
 ```
 
-Essa implementação garante que entidades não persistidas (id = null) nunca sejam consideradas iguais, e o hashCode constante evita problemas com collections quando o ID muda após persist.
+**Why CQRS-in-miniature for positions?**
+Trades are the write model (source of truth, audited). Positions are the read model / projection (fast O(1) reads). Sprint 4 starts with synchronous recalculation inside the settle transaction; Sprint 5 will publish a `TradeSettledEvent` via RabbitMQ for eventual consistency. This is *the* reason RabbitMQ is the next sprint, not a parallel feature.
+
+## License
+
+[MIT](LICENSE) — use it, fork it, learn from it.
 
 ---
 
-## Progresso
-
-```
-Sprint 1  ██████████ Concluída
-Sprint 2  ██████████ Concluída
-Sprint 3  ██████████ Concluída
-Sprint 4  ░░░░░░░░░░ Próxima
-Sprint 5  ░░░░░░░░░░
-Sprint 6  ░░░░░░░░░░
-Sprint 7  ░░░░░░░░░░
-Sprint 8  ░░░░░░░░░░
-Sprint 9  ░░░░░░░░░░
-```
-
-Projeto em desenvolvimento ativo. Acompanhe o progresso nos commits.
+🇧🇷 *Para a versão em português, veja o [README anterior no histórico do git](https://github.com/Scarlateli/Position-Manager/blob/main/README.md).*
