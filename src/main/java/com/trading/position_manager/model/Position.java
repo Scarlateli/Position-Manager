@@ -1,11 +1,23 @@
 package com.trading.position_manager.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "positions")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Position {
 
     @Id
@@ -13,6 +25,7 @@ public class Position {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "instrument_id", nullable = false)
     private Instrument instrument;
 
     @Column(nullable = false)
@@ -30,17 +43,6 @@ public class Position {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    protected Position() {
-    }
-
-    public Position(Instrument instrument, LocalDate positionDate,
-                    BigDecimal quantity, BigDecimal averagePrice) {
-        this.instrument = instrument;
-        this.positionDate = positionDate;
-        this.quantity = quantity;
-        this.averagePrice = averagePrice;
-    }
-
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -51,50 +53,6 @@ public class Position {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Instrument getInstrument() {
-        return instrument;
-    }
-
-    public LocalDate getPositionDate() {
-        return positionDate;
-    }
-
-    public BigDecimal getQuantity() {
-        return quantity;
-    }
-
-    public BigDecimal getAveragePrice() {
-        return averagePrice;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setInstrument(Instrument instrument) {
-        this.instrument = instrument;
-    }
-
-    public void setPositionDate(LocalDate positionDate) {
-        this.positionDate = positionDate;
-    }
-
-    public void setQuantity(BigDecimal quantity) {
-        this.quantity = quantity;
-    }
-
-    public void setAveragePrice(BigDecimal averagePrice) {
-        this.averagePrice = averagePrice;
     }
 
     @Override

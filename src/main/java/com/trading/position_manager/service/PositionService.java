@@ -1,6 +1,7 @@
 package com.trading.position_manager.service;
 
 import com.trading.position_manager.dto.PositionResponseDTO;
+import com.trading.position_manager.exception.ResourceNotFoundException;
 import com.trading.position_manager.model.TradeDirection;
 import com.trading.position_manager.model.Instrument;
 import com.trading.position_manager.model.Position;
@@ -9,8 +10,6 @@ import com.trading.position_manager.model.TradeStatus;
 import com.trading.position_manager.repository.InstrumentRepository;
 import com.trading.position_manager.repository.PositionRepository;
 import com.trading.position_manager.repository.TradeRepository;
-
-import org.hibernate.metamodel.mapping.ForeignKeyDescriptor.Side;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +39,8 @@ public class PositionService {
                 .orElseThrow(() -> new RuntimeException("Instrument not found with id: " + instrumentId));
 
         List<Trade> settledTrades =
-                tradeRepository.findByInstrumentIdAndStatus(instrumentId, TradeStatus.SETTLED);
+                tradeRepository.findByInstrumentIdAndStatus(instrumentId, TradeStatus.SETTLED)
+                .orElseThrow(() -> new ResourceNotFoundException("Instrument not found with id and status" + instrumentId));;
 
         BigDecimal netQuantity = BigDecimal.ZERO;
         BigDecimal totalBuyQuantity = BigDecimal.ZERO;
@@ -111,6 +111,4 @@ public class PositionService {
                 .map(PositionResponseDTO::from)
                 .toList();
     }
-} {
-  
-}
+} 

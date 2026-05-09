@@ -36,29 +36,28 @@ public class TradeService {
         return tradeRepo.save(trade);
     }
 
-   @Transactional
-   public Trade settle(Long id) {
+    @Transactional
+    public Trade settle(Long id) {
 
-    Trade trade = tradeRepo.findById(id)
-            .orElseThrow(() ->
-                    new ResourceNotFoundException("Trade não encontrado com ID: " + id));
+        Trade trade = tradeRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Trade não encontrado com ID: " + id));
 
-    if (trade.getStatus() == TradeStatus.CANCELLED) {
-        throw new BusinessException("Trade cancelado");
+        if (trade.getStatus() == TradeStatus.CANCELLED) {
+            throw new BusinessException("Trade cancelado");
+        }
+
+        if (trade.getStatus() == TradeStatus.SETTLED) {
+            throw new BusinessException("Trade já liquidado");
+        }
+
+        trade.setStatus(TradeStatus.SETTLED);
+
+        Trade savedTrade = tradeRepo.save(trade);
+
+        positionService.recalculate(savedTrade.getInstrument().getId());
+
+        return savedTrade;
     }
-
-    if (trade.getStatus() == TradeStatus.SETTLED) {
-        throw new BusinessException("Trade já liquidado");
-    }
-
-    trade.setStatus(TradeStatus.SETTLED);
-
-    Trade savedTrade = tradeRepo.save(trade);
-
-    positionService.recalculate(savedTrade.getInstrument().getId());
-
-    return savedTrade;
-}
 
     @Transactional
     public Trade cancel(Long id) {
