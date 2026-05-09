@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TradeService {
     private final TradeRepository tradeRepo;
     private final InstrumentRepository instrumentRepo;
+    private final PositionService positionService;
 
     @Transactional
     public Trade create(TradeRequestDTO dto) {
@@ -35,15 +36,29 @@ public class TradeService {
         return tradeRepo.save(trade);
     }
 
-    @Transactional
-    public Trade settle(Long id) {
-        Trade t = tradeRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Trade não encontrado com ID: " + id));
-        if (t.getStatus() == TradeStatus.CANCELLED)
-            throw new BusinessException("Trade cancelado");
-        t.setStatus(TradeStatus.SETTLED);
-        return tradeRepo.save(t);
+   @Transactional
+   public Trade settle(Long id) {
+
+    Trade trade = tradeRepo.findById(id)
+            .orElseThrow(() ->
+                    new ResourceNotFoundException("Trade não encontrado com ID: " + id));
+
+    if (trade.getStatus() == TradeStatus.CANCELLED) {
+        throw new BusinessException("Trade cancelado");
     }
+
+    if (trade.getStatus() == TradeStatus.SETTLED) {
+        throw new BusinessException("Trade já liquidado");
+    }
+
+    trade.setStatus(TradeStatus.SETTLED);
+
+    Trade savedTrade = tradeRepo.save(trade);
+
+    positionService.recalculate(savedTrade.getInstrument().getId());
+
+    return savedTrade;
+}
 
     @Transactional
     public Trade cancel(Long id) {
