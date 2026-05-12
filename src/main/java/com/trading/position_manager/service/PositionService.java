@@ -37,11 +37,7 @@ public class PositionService {
                         "Instrument not found with id: " + instrumentId
                 ));
 
-        List<Trade> settledTrades =
-                tradeRepository.findByInstrumentIdAndStatus(
-                        instrumentId,
-                        TradeStatus.SETTLED
-                );
+        List<Trade> settledTrades =tradeRepository.findByInstrumentIdAndStatus(instrumentId,TradeStatus.SETTLED);
 
         if (settledTrades.isEmpty()) {
             throw new ResourceNotFoundException(
@@ -64,9 +60,7 @@ public class PositionService {
 
                 totalBuyQuantity = totalBuyQuantity.add(quantity);
 
-                totalBuyValue = totalBuyValue.add(
-                        quantity.multiply(price)
-                );
+                totalBuyValue = totalBuyValue.add(quantity.multiply(price));
 
             } else if (trade.getDirection() == TradeDirection.SELL) {
 
@@ -78,11 +72,7 @@ public class PositionService {
 
         if (totalBuyQuantity.compareTo(BigDecimal.ZERO) > 0) {
 
-            averagePrice = totalBuyValue.divide(
-                    totalBuyQuantity,
-                    6,
-                    RoundingMode.HALF_UP
-            );
+            averagePrice = totalBuyValue.divide(totalBuyQuantity,6,RoundingMode.HALF_UP);
         }
 
         Position position = positionRepository.findByInstrumentId(instrumentId)
@@ -96,13 +86,9 @@ public class PositionService {
 
         position.setPositionDate(LocalDate.now());
 
-        position.setQuantity(
-                netQuantity.setScale(4, RoundingMode.HALF_UP)
-        );
+        position.setQuantity(netQuantity.setScale(4, RoundingMode.HALF_UP));
 
-        position.setAveragePrice(
-                averagePrice.setScale(6, RoundingMode.HALF_UP)
-        );
+        position.setAveragePrice(averagePrice.setScale(6, RoundingMode.HALF_UP));
 
         return positionRepository.save(position);
     }

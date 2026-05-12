@@ -20,9 +20,7 @@ public class PositionController {
 
     @GetMapping("/{instrumentId}")
     @ResponseStatus(HttpStatus.OK)
-    public PositionResponseDTO getPositionByInstrument(
-            @PathVariable Long instrumentId
-    ) {
+    public PositionResponseDTO getPositionByInstrument(@PathVariable Long instrumentId) {
         return positionService.findByInstrument(instrumentId);
     }
 
