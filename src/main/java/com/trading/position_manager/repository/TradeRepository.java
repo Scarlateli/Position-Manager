@@ -12,4 +12,6 @@ public interface TradeRepository
     @Query("SELECT t FROM Trade t WHERE t.instrument.id = :id "
             + "AND t.status = 'SETTLED'")
     List<Trade> findSettledByInstrument(Long id);
+
+    List<Trade> findByInstrumentIdAndStatus(Long instrumentId, TradeStatus status);
 }

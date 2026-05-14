@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-
 public class Trade {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
